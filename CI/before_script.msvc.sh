@@ -342,6 +342,19 @@ if [ -z $VS_VERSION ]; then
 fi
 
 case $VS_VERSION in
+    17|17.0|2022 )
+		GENERATOR="Visual Studio 17 2022"
+		TOOLSET="vc143"
+		MSVC_REAL_VER="17"
+		MSVC_VER="14.3"
+		MSVC_YEAR="2015"
+		MSVC_REAL_YEAR="2019"
+		MSVC_DISPLAY_YEAR="2022"
+		BOOST_VER="1.80.0"
+		BOOST_VER_URL="1_80_0"
+		BOOST_VER_SDK="108000"
+		;;
+        
 	16|16.0|2019 )
 		GENERATOR="Visual Studio 16 2019"
 		TOOLSET="vc142"
