@@ -6,39 +6,43 @@
 #  RakNet_INCLUDES - the RakNet include directory
 #  RakNet_LIBRARY - Link these to use RakNet
 
-FIND_LIBRARY (RakNet_LIBRARY_RELEASE NAMES RakNetLibStatic
-    PATHS
-    ENV LD_LIBRARY_PATH
-    ENV LIBRARY_PATH
-    /usr/lib64
-    /usr/lib
-    /usr/local/lib64
-    /usr/local/lib
-    /opt/local/lib
-    $ENV{RAKNET_ROOT}/lib
-    )
+# FIND_LIBRARY (RakNet_LIBRARY_RELEASE NAMES RakNetLibStatic
+    # PATHS
+    # ENV LD_LIBRARY_PATH
+    # ENV LIBRARY_PATH
+    # /usr/lib64
+    # /usr/lib
+    # /usr/local/lib64
+    # /usr/local/lib
+    # /opt/local/lib
+    # $ENV{RAKNET_ROOT}/lib
+    # )
 	
-FIND_LIBRARY (RakNet_LIBRARY_DEBUG NAMES RakNetLibStaticd
-    PATHS
-    ENV LD_LIBRARY_PATH
-    ENV LIBRARY_PATH
-    /usr/lib64
-    /usr/lib
-    /usr/local/lib64
-    /usr/local/lib
-    /opt/local/lib
-    $ENV{RAKNET_ROOT}/lib
-    )	
+# FIND_LIBRARY (RakNet_LIBRARY_DEBUG NAMES RakNetLibStaticd
+    # PATHS
+    # ENV LD_LIBRARY_PATH
+    # ENV LIBRARY_PATH
+    # /usr/lib64
+    # /usr/lib
+    # /usr/local/lib64
+    # /usr/local/lib
+    # /opt/local/lib
+    # $ENV{RAKNET_ROOT}/lib
+    # )	
 	
 	
 
-FIND_PATH (RakNet_INCLUDES raknet/RakPeer.h
-    ENV CPATH
-    /usr/include
-    /usr/local/include
-    /opt/local/include
-	$ENV{RAKNET_ROOT}/include
-    )
+# FIND_PATH (RakNet_INCLUDES raknet/RakPeer.h
+    # ENV CPATH
+    # /usr/include
+    # /usr/local/include
+    # /opt/local/include
+	# $ENV{RAKNET_ROOT}/include
+    # )
+    
+SET(RakNet_LIBRARY_RELEASE D:/GitHub/TES3MP/deps/RakNet/lib/Release/RakNetLibStatic.lib)
+SET(RakNet_LIBRARY_DEBUG D:/GitHub/TES3MP/deps/RakNet/lib/Debug/RakNetLibStaticd.lib)
+SET(RakNet_INCLUDES D:/GitHub/TES3MP/deps/RakNet/include)
  
 MESSAGE(STATUS ${RakNet_INCLUDES})
 MESSAGE(STATUS ${RakNet_LIBRARY_RELEASE})
