@@ -1001,6 +1001,16 @@ if [ ! -z $TEST_FRAMEWORK ]; then
 
 fi
 
+# For TES3MP
+printf "RakNet..."
+{
+	export RAKNET_ROOT="$(real_pwd)/RakNet"
+}
+printf "LuaJit..."
+{
+	export LUAJIT_ROOT="$(real_pwd)/luajit"
+}
+
 echo
 cd $DEPS_INSTALL/..
 echo
