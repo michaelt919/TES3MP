@@ -70,6 +70,9 @@ void main()
 
     vec4 diffuseTex = texture2D(diffuseMap, adjustedUV);
     gl_FragData[0] = vec4(diffuseTex.xyz, 1.0);
+    
+    // Gamma decoding for diffuse map.
+    gl_FragData[0].rgb = pow(gl_FragData[0].rgb, vec3(GAMMA));
 
 #if @blendMap
     vec2 blendMapUV = (gl_TextureMatrix[1] * vec4(uv, 0.0, 1.0)).xy;
@@ -77,36 +80,49 @@ void main()
 #endif
 
     vec4 diffuseColor = getDiffuseColor();
+    
+    // Gamma decoding for vertex color (is actually only used for alpha and ambient occlusion)
+    diffuseColor.rgb = pow(diffuseColor.rgb, vec3(GAMMA));
+    
     gl_FragData[0].a *= diffuseColor.a;
 
     float shadowing = unshadowedLightRatio(linearDepth);
-    vec3 lighting;
+    vec3 lighting, specular;
 #if !PER_PIXEL_LIGHTING
     lighting = passLighting + shadowDiffuseLighting * shadowing;
 #else
+#if (!@normalMap && !@parallax && !@forcePPL)
+    vec3 viewNormal = gl_NormalMatrix * normalize(passNormal);
+#endif
     vec3 diffuseLight, ambientLight;
-    doLighting(passViewPos, normalize(viewNormal), shadowing, diffuseLight, ambientLight);
-    lighting = diffuseColor.xyz * diffuseLight + getAmbientColor().xyz * ambientLight + getEmissionColor().xyz;
+    // doLighting should come out with appropriate gamma decoding of light parameters
+    doLightingPBR(passViewPos, normalize(viewNormal), gl_NormalMatrix * normalize(passNormal), 1.0, vec3(0.04), shadowing, diffuseLight, ambientLight, specular);
+    
+    // Fake ambient occlusion using vertex colors -- use the smaller of the diffuse and ambient vertex colors, but no less than 50%
+    vec3 ambientOcclusion = max(vec3(0.5), min(pow(getAmbientColor().xyz, vec3(GAMMA)), diffuseColor.xyz));
+    
+    // Ambient and emissive vertex colors still needs gamma decoding
+    lighting = diffuseLight + ambientOcclusion * ambientLight,
+        + pow(getEmissionColor().xyz, vec3(GAMMA));
     clampLightingResult(lighting);
 #endif
 
     gl_FragData[0].xyz *= lighting;
 
-#if @specularMap
-    float shininess = 128.0; // TODO: make configurable
-    vec3 matSpec = vec3(diffuseTex.a);
-#else
-    float shininess = gl_FrontMaterial.shininess;
-    vec3 matSpec = getSpecularColor().xyz;
-#endif
+// // TODO overhaul specular map
+// #if @specularMap
+    // float shininess = 128.0; // TODO: make configurable
+    // vec3 matSpec = vec3(diffuseTex.a);
+// #else
+    // float shininess = gl_FrontMaterial.shininess;
+    // vec3 matSpec = getSpecularColor().xyz;
+// #endif
 
-    if (matSpec != vec3(0.0))
-    {
-#if (!@normalMap && !@parallax && !@forcePPL)
-        vec3 viewNormal = gl_NormalMatrix * normalize(passNormal);
-#endif
-        gl_FragData[0].xyz += getSpecular(normalize(viewNormal), normalize(passViewPos), shininess, matSpec) * shadowing;
-    }
+    // Multiply specular by approximation of ambient occlusion.
+    gl_FragData[0].xyz += ambientOcclusion * specular;
+    
+    // Apply gamma encoding pre-fog.
+    gl_FragData[0].rgb = pow(gl_FragData[0].rgb, vec3(INV_GAMMA));
 
 #if @radialFog
     float fogValue = clamp((euclideanDepth - gl_Fog.start) * gl_Fog.scale, 0.0, 1.0);
@@ -114,6 +130,6 @@ void main()
     float fogValue = clamp((linearDepth - gl_Fog.start) * gl_Fog.scale, 0.0, 1.0);
 #endif
     gl_FragData[0].xyz = mix(gl_FragData[0].xyz, gl_Fog.color.xyz, fogValue);
-
+    
     applyShadowDebugOverlay();
 }

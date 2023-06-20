@@ -126,6 +126,10 @@ void main()
 #endif
 
     vec4 diffuseColor = getDiffuseColor();
+    
+    // Gamma decoding for vertex color (is actually only used for alpha and ambient occlusion)
+    diffuseColor.rgb = pow(diffuseColor.rgb, vec3(GAMMA));
+    
     gl_FragData[0].a *= diffuseColor.a;
     alphaTest();
 
@@ -142,6 +146,26 @@ void main()
     gl_FragData[0].xyz = mix(gl_FragData[0].xyz, decalTex.xyz, decalTex.a);
 #endif
 
+    // Gamma decoding for diffuse map, detail map, dark map, and decal map.
+    gl_FragData[0].rgb = pow(gl_FragData[0].rgb, vec3(GAMMA));
+
+#if @specularMap
+    // Unpack ORM (occlusion/roughness/metallicity) map
+    vec3 orm = texture2D(specularMap, specularMapUV).rgb;
+    float roughness = max(0.01, orm[1]);
+    float m = roughness * roughness; // perceptually linear roughness = sqrt(m)
+    float ambientOcclusion = orm[0];
+    
+    // Metallicity
+    // Multiply times PI since Morrowind's color textures essentially store albedo / PI.
+    vec3 matSpec = mix(vec3(0.04), gl_FragData[0].rgb * PI, orm[2]);
+    gl_FragData[0].rgb *= (1 - orm[2]);
+#else
+    float m = 1.0;
+    float ambientOcclusion = 1.0;
+    vec3 matSpec = vec3(0.04);
+#endif
+
 #if @envMap
 
     vec2 envTexCoordGen = envMapUV;
@@ -151,8 +175,8 @@ void main()
     // if using normal map + env map, take advantage of per-pixel normals for envTexCoordGen
     vec3 viewVec = normalize(passViewPos.xyz);
     vec3 r = reflect( viewVec, viewNormal );
-    float m = 2.0 * sqrt( r.x*r.x + r.y*r.y + (r.z+1.0)*(r.z+1.0) );
-    envTexCoordGen = vec2(r.x/m + 0.5, r.y/m + 0.5);
+    float w = 2.0 * sqrt( r.x*r.x + r.y*r.y + (r.z+1.0)*(r.z+1.0) );
+    envTexCoordGen = vec2(r.x/w + 0.5, r.y/w + 0.5);
 #endif
 
 #if @bumpMap
@@ -162,49 +186,51 @@ void main()
 #endif
 
 #if @preLightEnv
-    gl_FragData[0].xyz += texture2D(envMap, envTexCoordGen).xyz * envMapColor.xyz * envLuma;
+    // Gamma decode environment map
+    gl_FragData[0].xyz += pow(texture2D(envMap, envTexCoordGen).xyz * envMapColor.xyz * envLuma, vec3(GAMMA));
 #endif
 
 #endif
 
     float shadowing = unshadowedLightRatio(linearDepth);
-    vec3 lighting;
+    vec3 lighting, specular;
 #if !PER_PIXEL_LIGHTING
     lighting = passLighting + shadowDiffuseLighting * shadowing;
 #else
+#if (!@normalMap && !@parallax && !@forcePPL)
+    vec3 viewNormal = gl_NormalMatrix * normalize(passNormal);
+#endif
     vec3 diffuseLight, ambientLight;
-    doLighting(passViewPos, normalize(viewNormal), shadowing, diffuseLight, ambientLight);
-    vec3 emission = getEmissionColor().xyz * emissiveMult;
-    lighting = diffuseColor.xyz * diffuseLight + getAmbientColor().xyz * ambientLight + emission;
+    // doLighting should come out with appropriate gamma decoding of light parameters
+    doLightingPBR(passViewPos, normalize(viewNormal), gl_NormalMatrix * normalize(passNormal), m, matSpec, shadowing, diffuseLight, ambientLight, specular);
+    vec3 emission = pow(getEmissionColor().xyz * emissiveMult, vec3(GAMMA)); // Gamma decode emission
+    // Ambient vertex color still needs gamma decoding
+    vec3 ambientColor = pow(getAmbientColor().xyz, vec3(GAMMA));
+    // Fake ambient occlusion using vertex colors -- use the smaller of the diffuse and ambient vertex colorss, but no less than 50%
+    vec3 ambientOcclusionVertex = max(vec3(0.5), min(pow(getAmbientColor().xyz, vec3(GAMMA)), diffuseColor.xyz));
+    lighting = diffuseLight + ambientLight * ambientOcclusionVertex * ambientOcclusion + emission;
     clampLightingResult(lighting);
 #endif
 
     gl_FragData[0].xyz *= lighting;
 
 #if @envMap && !@preLightEnv
-    gl_FragData[0].xyz += texture2D(envMap, envTexCoordGen).xyz * envMapColor.xyz * envLuma;
+    // Gamma decode environment map
+    gl_FragData[0].xyz += pow(texture2D(envMap, envTexCoordGen).xyz * envMapColor.xyz * envLuma, vec3(GAMMA));
 #endif
 
 #if @emissiveMap
-    gl_FragData[0].xyz += texture2D(emissiveMap, emissiveMapUV).xyz;
+    // Gamma decode emissive map
+    gl_FragData[0].xyz += pow(texture2D(emissiveMap, emissiveMapUV).xyz, vec3(GAMMA));
 #endif
 
-#if @specularMap
-    vec4 specTex = texture2D(specularMap, specularMapUV);
-    float shininess = specTex.a * 255.0;
-    vec3 matSpec = specTex.xyz;
-#else
-    float shininess = gl_FrontMaterial.shininess;
-    vec3 matSpec = getSpecularColor().xyz;
+#ifndef GROUNDCOVER // No specular for groundcover
+    gl_FragData[0].xyz += specular;
 #endif
-
-    if (matSpec != vec3(0.0))
-    {
-#if (!@normalMap && !@parallax && !@forcePPL)
-        vec3 viewNormal = gl_NormalMatrix * normalize(passNormal);
-#endif
-        gl_FragData[0].xyz += getSpecular(normalize(viewNormal), normalize(passViewPos.xyz), shininess, matSpec) * shadowing;
-    }
+    
+    // Apply gamma encoding pre-fog.
+    gl_FragData[0].rgb = pow(gl_FragData[0].rgb, vec3(INV_GAMMA));
+    
 #if @radialFog
     float depth;
     // For the less detailed mesh of simple water we need to recalculate depth on per-pixel basis
