@@ -1716,7 +1716,16 @@ namespace MWMechanics
 
         float target = x - y;
 
-        return (Misc::Rng::roll0to99() >= target);
+        if (Settings::Manager::getBool("consistent sneak", "Game"))
+        {
+            // Use a fixed "roll" for more consistent sneak gameplay
+            // Use > so that a target of exactly 50 goes in favor of the one trying to sneak
+            return (50 > target);
+        }
+        else
+        {
+            return (Misc::Rng::roll0to99() >= target);
+        }
     }
 
     void MechanicsManager::startCombat(const MWWorld::Ptr &ptr, const MWWorld::Ptr &target)

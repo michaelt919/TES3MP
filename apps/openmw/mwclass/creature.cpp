@@ -416,6 +416,8 @@ namespace MWClass
         {
             MWMechanics::getHandToHandDamage(ptr, victim, damage, healthdmg, attackStrength);
         }
+        
+        MWMechanics::adjustDamageFromSkill(damage, ptr, ref->mBase->mData.mCombat, hitchance - 100);
 
         MWMechanics::applyElementalShields(ptr, victim);
 

@@ -49,6 +49,8 @@ void adjustWeaponDamage (float& damage, const MWWorld::Ptr& weapon, const MWWorl
 
 void getHandToHandDamage (const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, float& damage, bool& healthdmg, float attackStrength);
 
+bool adjustDamageFromSkill(float& damage, const MWWorld::Ptr& attacker, int skillValue, int criticalChance);
+
 /// Apply the fatigue loss incurred by attacking with the given weapon (weapon may be empty = hand-to-hand)
 void applyFatigueLoss(const MWWorld::Ptr& attacker, const MWWorld::Ptr& weapon, float attackStrength);
 
