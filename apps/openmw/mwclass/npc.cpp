@@ -623,7 +623,8 @@ namespace MWClass
         if(!weapon.isEmpty())
             weapskill = weapon.getClass().getEquipmentSkill(weapon);
 
-        float hitchance = MWMechanics::getHitChance(ptr, victim, getSkill(ptr, weapskill));
+        int skillValue = getSkill(ptr, weapskill);
+        float hitchance = MWMechanics::getHitChance(ptr, victim, skillValue);
 
         /*
             Start of tes3mp addition
@@ -694,12 +695,17 @@ namespace MWClass
             MWMechanics::resistNormalWeapon(victim, ptr, weapon, damage);
             MWMechanics::applyWerewolfDamageMult(victim, weapon, damage);
             MWMechanics::reduceWeaponCondition(damage, true, weapon, ptr);
+
             healthdmg = true;
         }
         else
         {
             MWMechanics::getHandToHandDamage(ptr, victim, damage, healthdmg, attackStrength);
         }
+
+        bool stealthCritical = false;
+        int critChance = hitchance - 100;
+
         if(ptr == MWMechanics::getPlayer())
         {
             skillUsageSucceeded(ptr, weapskill, 0);
@@ -708,14 +714,29 @@ namespace MWClass
 
             bool unaware = !seq.isInCombat()
                     && !MWBase::Environment::get().getMechanicsManager()->awarenessCheck(ptr, victim);
-            if(unaware)
+            if (unaware)
             {
                 damage *= store.find("fCombatCriticalStrikeMult")->mValue.getFloat();
-                MWBase::Environment::get().getWindowManager()->messageBox("#{sTargetCriticalStrike}");
-                MWBase::Environment::get().getSoundManager()->playSound3D(victim, "critical damage", 1.0f, 1.0f);
+
+                if (Settings::Manager::getBool("attacks usually hit", "Game") && Settings::Manager::getBool("critical chance", "Game"))
+                {
+                   damage *= 0.5; // Multiply by 0.5 since new critical damage formula intrinsically boosts damage by up to 2.0 at max weapon skill level.
+                }
+
+                critChance = 100;
+                stealthCritical = true;
             }
         }
 
+        // Stealth critical guarantees a chance critical as well, and stacks multiplicatively with its bonus
+        bool chanceBasedCritical = MWMechanics::adjustDamageFromSkill(damage, ptr, skillValue, critChance);
+
+        if (ptr == MWMechanics::getPlayer() && (stealthCritical || chanceBasedCritical))
+        {
+            MWBase::Environment::get().getWindowManager()->messageBox("#{sTargetCriticalStrike}");
+            MWBase::Environment::get().getSoundManager()->playSound3D(victim, "critical damage", 1.0f, 1.0f);
+        }
+       
         if (othercls.getCreatureStats(victim).getKnockedDown())
             damage *= store.find("fCombatKODamageMult")->mValue.getFloat();
 
@@ -815,7 +836,21 @@ namespace MWClass
         {
             // Missed
             if (!attacker.isEmpty() && attacker == MWMechanics::getPlayer())
+            {
                 sndMgr->playSound3D(ptr, "miss", 1.0f, 1.0f);
+
+                if (Settings::Manager::getBool("verbose attack misses", "Game"))
+                {
+                    MWBase::Environment::get().getWindowManager()->messageBox("Target dodged your attack.");
+                }
+            }
+            else if (Settings::Manager::getBool("verbose attack misses", "Game") && !ptr.isEmpty() && ptr == MWMechanics::getPlayer())
+            {
+                // If verbose misses is enabled play the miss sound on the player dodging an enemy's attack as well.
+                sndMgr->playSound3D(ptr, "miss", 1.0f, 1.0f);
+                MWBase::Environment::get().getWindowManager()->messageBox("You dodged an attack.");
+            }
+
             return;
         }
 
