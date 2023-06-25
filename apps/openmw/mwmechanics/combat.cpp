@@ -281,7 +281,8 @@ namespace MWMechanics
                 End of tes3mp addition
             */
 
-            if (Misc::Rng::roll0to99() >= getHitChance(attacker, victim, skillValue))
+            int hitChance = getHitChance(attacker, victim, skillValue);
+            if (Misc::Rng::roll0to99() >= hitChance)
             {
                 /*
                     Start of tes3mp addition
@@ -315,15 +316,43 @@ namespace MWMechanics
             if (attacker == getPlayer())
                 attacker.getClass().skillUsageSucceeded(attacker, weaponSkill, 0);
 
+            bool stealthCritical = false;
+            int critChance = hitChance - 100;
+
             const MWMechanics::AiSequence& sequence = victim.getClass().getCreatureStats(victim).getAiSequence();
             bool unaware = attacker == getPlayer() && !sequence.isInCombat()
                 && !MWBase::Environment::get().getMechanicsManager()->awarenessCheck(attacker, victim);
             bool knockedDown = victim.getClass().getCreatureStats(victim).getKnockedDown();
-            if (knockedDown || unaware)
+            if (knockedDown)
             {
                 damage *= gmst.find("fCombatKODamageMult")->mValue.getFloat();
-                if (!knockedDown)
-                    MWBase::Environment::get().getSoundManager()->playSound3D(victim, "critical damage", 1.0f, 1.0f);
+            }
+            else if (unaware)
+            {
+                stealthCritical = true;
+                critChance = 100;
+            }
+
+            // Stealth critical guarantees a chance critical as well, and stacks multiplicatively with its bonus
+            bool chanceBasedCritical = MWMechanics::adjustDamageFromSkill(damage, attacker, skillValue, critChance);
+
+            if (stealthCritical || chanceBasedCritical)
+            {
+                if (attacker == MWMechanics::getPlayer())
+                {
+                    // if attacks always hit or critical chance are not both enabled, use vanilla behavior of not showing critical strike message for ranged sneak attacks
+                    if (Settings::Manager::getBool("attacks usually hit", "Game") && Settings::Manager::getBool("critical chance", "Game"))
+                    {
+                        MWBase::Environment::get().getWindowManager()->messageBox("#{sTargetCriticalStrike}");
+                    }
+                    else
+                    {
+                        // Use vanilla behavior of using KO damage multiplier for ranged sneak attacks if attacks always hit or critical chance are not both enabled
+                        damage *= gmst.find("fCombatKODamageMult")->mValue.getFloat();
+                    }
+                }
+
+                MWBase::Environment::get().getSoundManager()->playSound3D(victim, "critical damage", 1.0f, 1.0f);
             }
         }
 
@@ -400,14 +429,36 @@ namespace MWMechanics
                                     gmst.find("fCombatInvisoMult")->mValue.getFloat() *
                                     victimStats.getMagicEffects().get(ESM::MagicEffect::Invisibility).getMagnitude());
         }
+
         float attackTerm = skillValue +
                           (stats.getAttribute(ESM::Attribute::Agility).getModified() / 5.0f) +
                           (stats.getAttribute(ESM::Attribute::Luck).getModified() / 10.0f);
-        attackTerm *= stats.getFatigueTerm();
+        float fatigueTerm = stats.getFatigueTerm();
+        attackTerm *= fatigueTerm;
         attackTerm += mageffects.get(ESM::MagicEffect::FortifyAttack).getMagnitude() -
                      mageffects.get(ESM::MagicEffect::Blind).getMagnitude();
 
-        return round(attackTerm - defenseTerm);
+        if (Settings::Manager::getBool("attacks usually hit", "Game"))
+        {
+            float fatigueAdjustedSkill = skillValue * fatigueTerm;
+
+            // Remove fatigue-adjusted skill from attack and all you have left is agility + luck + magic effects
+            // Use this to calculate critical hit or dodge chances
+            float agilityTerm = attackTerm - fatigueAdjustedSkill;
+            if (agilityTerm > defenseTerm) // Hit chance is above 100%, calculate critical chance (if enabled)
+            {
+                return 100.0f + round(agilityTerm - defenseTerm); // Return 100 + critical chance as "hit chance"
+            }
+            else // Dodge chance rescaled by fatigue adjusted skill
+            {
+                return round(100.0f * (attackTerm - defenseTerm) / fatigueAdjustedSkill);
+            }
+        }
+        else
+        {
+            // Vanilla behavior
+            return round(attackTerm - defenseTerm);
+        }
     }
 
     void applyElementalShields(const MWWorld::Ptr &attacker, const MWWorld::Ptr &victim)
@@ -551,6 +602,30 @@ namespace MWMechanics
         }
         else if (!healthdmg)
             sndMgr->playSound3D(victim, "Hand To Hand Hit", 1.0f, 1.0f);
+    }
+
+    bool adjustDamageFromSkill(float& damage, const MWWorld::Ptr& attacker, int skillValue, int criticalChance)
+    {
+        if (Settings::Manager::getBool("attacks usually hit", "Game"))
+        {
+            // Adjust damage to rebalance for attacks usually connecting.
+            MWMechanics::CreatureStats& stats = attacker.getClass().getCreatureStats(attacker);
+            float fatigueAdjustedSkill = skillValue * stats.getFatigueTerm() / 100.0f;
+
+            if (Settings::Manager::getBool("critical chance", "Game") && Misc::Rng::roll0to99() < criticalChance)
+            {
+                // Critical hit
+                damage *= 1.0f + fatigueAdjustedSkill;
+                return true;
+            }
+            else
+            {
+                // Normal hit
+                damage *= fatigueAdjustedSkill;
+            }
+        }
+
+        return false; // non-critical hit
     }
 
     void applyFatigueLoss(const MWWorld::Ptr &attacker, const MWWorld::Ptr &weapon, float attackStrength)

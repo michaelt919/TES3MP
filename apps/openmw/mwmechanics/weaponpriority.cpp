@@ -77,6 +77,23 @@ namespace MWMechanics
 
         adjustWeaponDamage(rating, item, actor);
 
+        int skillValue = 50.f;
+        if (actor.getClass().isNpc())
+        {
+            int skill = item.getClass().getEquipmentSkill(item);
+            if (skill != -1)
+                skillValue = actor.getClass().getSkill(actor, skillValue);
+        }
+        else
+        {
+            MWWorld::LiveCellRef<ESM::Creature>* ref = actor.get<ESM::Creature>();
+            skillValue = ref->mBase->mData.mCombat;
+        }
+
+        // Adjust damage from skill in case "attacks usually hit" is enabled.
+        // Use critical chance of zero to ensure this is deterministic
+        adjustDamageFromSkill(rating, actor, skillValue, 0);
+
         if (weapclass != ESM::WeaponType::Ranged)
         {
             resistNormalWeapon(enemy, actor, item, rating);
@@ -114,21 +131,8 @@ namespace MWMechanics
             }
         }
 
-        int value = 50.f;
-        if (actor.getClass().isNpc())
-        {
-            int skill = item.getClass().getEquipmentSkill(item);
-            if (skill != -1)
-               value = actor.getClass().getSkill(actor, skill);
-        }
-        else
-        {
-            MWWorld::LiveCellRef<ESM::Creature> *ref = actor.get<ESM::Creature>();
-            value = ref->mBase->mData.mCombat;
-        }
-
         // Take hit chance in account, but do not allow rating become negative.
-        float chance = getHitChance(actor, enemy, value) / 100.f;
+        float chance = getHitChance(actor, enemy, skillValue) / 100.f;
         rating *= std::min(1.f, std::max(0.01f, chance));
 
         if (weapclass != ESM::WeaponType::Ammo)
