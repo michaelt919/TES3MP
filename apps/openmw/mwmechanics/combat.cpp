@@ -282,6 +282,16 @@ namespace MWMechanics
             */
 
             int hitChance = getHitChance(attacker, victim, skillValue);
+
+            const MWMechanics::AiSequence& sequence = victim.getClass().getCreatureStats(victim).getAiSequence();
+            bool unaware = attacker == getPlayer() && !sequence.isInCombat()
+                && !MWBase::Environment::get().getMechanicsManager()->awarenessCheck(attacker, victim);
+
+            if (unaware && Settings::Manager::getBool("attacks usually hit", "Game") && Settings::Manager::getBool("critical chance", "Game"))
+            {
+                hitChance = 200; // Attacks always hit (and are always critical hits) if the target is unaware and if attacks usually hit and critical chance are enabled.
+            }
+
             if (Misc::Rng::roll0to99() >= hitChance)
             {
                 /*
@@ -316,42 +326,44 @@ namespace MWMechanics
             if (attacker == getPlayer())
                 attacker.getClass().skillUsageSucceeded(attacker, weaponSkill, 0);
 
-            bool stealthCritical = false;
             int critChance = hitChance - 100;
 
-            const MWMechanics::AiSequence& sequence = victim.getClass().getCreatureStats(victim).getAiSequence();
-            bool unaware = attacker == getPlayer() && !sequence.isInCombat()
-                && !MWBase::Environment::get().getMechanicsManager()->awarenessCheck(attacker, victim);
             bool knockedDown = victim.getClass().getCreatureStats(victim).getKnockedDown();
+
+            if (unaware)
+            {
+                if (Settings::Manager::getBool("attacks usually hit", "Game") && Settings::Manager::getBool("critical chance", "Game"))
+                {
+                    // Will do nothing with default GMSTs (4.0 * 0.25 = 1.0), but allows ranged sneak attacks to scale proportionally with melee sneak attacks, 
+                    // i.e. to implement modifiers more like Oblivion / Skyrim.
+                    // Sneak attacks still do more damage without anything here due to the use of the new critical hit damage formula.
+                    damage *= gmst.find("fCombatCriticalStrikeMult")->mValue.getFloat() * 0.25;
+
+                    if (attacker == MWMechanics::getPlayer())
+                    {
+                        // Show critical strike message
+                        MWBase::Environment::get().getWindowManager()->messageBox("#{sTargetCriticalStrike}");
+                    }
+                }
+                else if (!knockedDown) // Don't apply KO multiplier twice
+                {
+                    // Use vanilla behavior of using KO damage multiplier for ranged sneak attacks if attacks always hit or critical chance are not both enabled
+                    damage *= gmst.find("fCombatKODamageMult")->mValue.getFloat();
+
+                    // if attacks always hit or critical chance are not both enabled, use vanilla behavior of not showing critical strike message for ranged sneak attacks
+                }
+            }
+            
             if (knockedDown)
             {
                 damage *= gmst.find("fCombatKODamageMult")->mValue.getFloat();
-            }
-            else if (unaware)
-            {
-                stealthCritical = true;
-                critChance = 100;
             }
 
             // Stealth critical guarantees a chance critical as well, and stacks multiplicatively with its bonus
             bool chanceBasedCritical = MWMechanics::adjustDamageFromSkill(damage, attacker, skillValue, critChance);
 
-            if (stealthCritical || chanceBasedCritical)
+            if (unaware || chanceBasedCritical)
             {
-                if (attacker == MWMechanics::getPlayer())
-                {
-                    // if attacks always hit or critical chance are not both enabled, use vanilla behavior of not showing critical strike message for ranged sneak attacks
-                    if (Settings::Manager::getBool("attacks usually hit", "Game") && Settings::Manager::getBool("critical chance", "Game"))
-                    {
-                        MWBase::Environment::get().getWindowManager()->messageBox("#{sTargetCriticalStrike}");
-                    }
-                    else
-                    {
-                        // Use vanilla behavior of using KO damage multiplier for ranged sneak attacks if attacks always hit or critical chance are not both enabled
-                        damage *= gmst.find("fCombatKODamageMult")->mValue.getFloat();
-                    }
-                }
-
                 MWBase::Environment::get().getSoundManager()->playSound3D(victim, "critical damage", 1.0f, 1.0f);
             }
         }
