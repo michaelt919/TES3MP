@@ -626,6 +626,16 @@ namespace MWClass
         int skillValue = getSkill(ptr, weapskill);
         float hitchance = MWMechanics::getHitChance(ptr, victim, skillValue);
 
+        const MWMechanics::AiSequence& seq = victim.getClass().getCreatureStats(victim).getAiSequence();
+
+        bool unaware = !seq.isInCombat()
+            && !MWBase::Environment::get().getMechanicsManager()->awarenessCheck(ptr, victim);
+
+        if (ptr == MWMechanics::getPlayer() && unaware && Settings::Manager::getBool("attacks usually hit", "Game") && Settings::Manager::getBool("critical chance", "Game"))
+        {
+            hitchance = 200; // Attacks always hit (and are always critical hits) if the target is unaware and if attacks usually hit and critical chance are enabled.
+        }
+
         /*
             Start of tes3mp addition
 
@@ -703,17 +713,12 @@ namespace MWClass
             MWMechanics::getHandToHandDamage(ptr, victim, damage, healthdmg, attackStrength);
         }
 
-        bool stealthCritical = false;
         int critChance = hitchance - 100;
 
         if(ptr == MWMechanics::getPlayer())
         {
             skillUsageSucceeded(ptr, weapskill, 0);
 
-            const MWMechanics::AiSequence& seq = victim.getClass().getCreatureStats(victim).getAiSequence();
-
-            bool unaware = !seq.isInCombat()
-                    && !MWBase::Environment::get().getMechanicsManager()->awarenessCheck(ptr, victim);
             if (unaware)
             {
                 damage *= store.find("fCombatCriticalStrikeMult")->mValue.getFloat();
@@ -722,16 +727,13 @@ namespace MWClass
                 {
                    damage *= 0.5; // Multiply by 0.5 since new critical damage formula intrinsically boosts damage by up to 2.0 at max weapon skill level.
                 }
-
-                critChance = 100;
-                stealthCritical = true;
             }
         }
 
-        // Stealth critical guarantees a chance critical as well, and stacks multiplicatively with its bonus
+        // Stealth critical guarantees a chance critical as well, and stacks multiplicatively with its bonus (hence why we multiplied by 0.5 earlier)
         bool chanceBasedCritical = MWMechanics::adjustDamageFromSkill(damage, ptr, skillValue, critChance);
 
-        if (ptr == MWMechanics::getPlayer() && (stealthCritical || chanceBasedCritical))
+        if (ptr == MWMechanics::getPlayer() && (unaware || chanceBasedCritical))
         {
             MWBase::Environment::get().getWindowManager()->messageBox("#{sTargetCriticalStrike}");
             MWBase::Environment::get().getSoundManager()->playSound3D(victim, "critical damage", 1.0f, 1.0f);
