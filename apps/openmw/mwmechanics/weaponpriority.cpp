@@ -82,7 +82,7 @@ namespace MWMechanics
         {
             int skill = item.getClass().getEquipmentSkill(item);
             if (skill != -1)
-                skillValue = actor.getClass().getSkill(actor, skillValue);
+                skillValue = actor.getClass().getSkill(actor, skill);
         }
         else
         {
