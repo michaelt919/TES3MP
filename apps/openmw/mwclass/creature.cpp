@@ -495,7 +495,15 @@ namespace MWClass
         {
             // Missed
             if (!attacker.isEmpty() && attacker == MWMechanics::getPlayer())
+            {
                 MWBase::Environment::get().getSoundManager()->playSound3D(ptr, "miss", 1.0f, 1.0f);
+
+                if (Settings::Manager::getBool("verbose attack misses", "Game"))
+                {
+                    MWBase::Environment::get().getWindowManager()->messageBox("Target dodged your attack.");
+                }
+            }
+
             return;
         }
 
