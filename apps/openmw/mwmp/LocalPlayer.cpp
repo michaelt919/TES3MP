@@ -1248,21 +1248,22 @@ void LocalPlayer::setSpellbook()
     MWMechanics::Spells &ptrSpells = ptrPlayer.getClass().getCreatureStats(ptrPlayer).getSpells();
 
     // Clear spells in spellbook, while ignoring abilities, powers, etc.
-    while (true)
+    bool removed;
+    do
     {
-        MWMechanics::Spells::TIterator iter = ptrSpells.begin();
-        for (; iter != ptrSpells.end(); iter++)
+        removed = false;
+        for (MWMechanics::Spells::TIterator iter = ptrSpells.begin(); iter != ptrSpells.end(); iter++)
         {
             const ESM::Spell *spell = iter->first;
             if (spell->mData.mType == ESM::Spell::ST_Spell)
             {
                 ptrSpells.remove(spell->mId);
+                removed = true;
                 break;
             }
         }
-        if (iter == ptrSpells.end())
-            break;
-    }
+    } 
+    while (removed); // Keep going until nothing was found to remove
 
     // Proceed by adding spells
     addSpells();
