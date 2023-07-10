@@ -15,7 +15,7 @@ FIND_LIBRARY (RakNet_LIBRARY_RELEASE NAMES RakNetLibStatic
     /usr/local/lib64
     /usr/local/lib
     /opt/local/lib
-    $ENV{RAKNET_ROOT}/lib
+    $ENV{RAKNET_ROOT}/lib/Release
     )
 	
 FIND_LIBRARY (RakNet_LIBRARY_DEBUG NAMES RakNetLibStaticd
@@ -27,11 +27,9 @@ FIND_LIBRARY (RakNet_LIBRARY_DEBUG NAMES RakNetLibStaticd
     /usr/local/lib64
     /usr/local/lib
     /opt/local/lib
-    $ENV{RAKNET_ROOT}/lib
+    $ENV{RAKNET_ROOT}/lib/Debug
     )	
 	
-	
-
 FIND_PATH (RakNet_INCLUDES raknet/RakPeer.h
     ENV CPATH
     /usr/include
@@ -49,8 +47,6 @@ ENDIF(RakNet_INCLUDES AND RakNet_LIBRARY_RELEASE)
 
 IF(RakNet_FOUND)
   SET(RakNet_INCLUDES ${RakNet_INCLUDES}/raknet)
-  
-  
    IF (CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
         SET(RakNet_LIBRARY optimized ${RakNet_LIBRARY_RELEASE} debug ${RakNet_LIBRARY_DEBUG})
 		IF(WIN32)
@@ -74,4 +70,3 @@ ELSE(RakNet_FOUND)
     MESSAGE(FATAL_ERROR "Could not find RakNet")
   ENDIF(RakNet_FIND_REQUIRED)
 ENDIF(RakNet_FOUND)
-
