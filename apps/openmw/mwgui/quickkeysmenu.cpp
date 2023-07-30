@@ -39,6 +39,7 @@
 #include "spellview.hpp"
 #include "itemwidget.hpp"
 #include "sortfilteritemmodel.hpp"
+#include <components/settings/settings.hpp>
 
 
 namespace MWGui
@@ -551,7 +552,22 @@ namespace MWGui
             store.setSelectedEnchantItem(store.end());
             MWBase::Environment::get().getWindowManager()
                 ->setSelectedSpell(spellId, int(MWMechanics::getSpellSuccessChance(spellId, player)));
-            MWBase::Environment::get().getWorld()->getPlayer().setDrawState(MWMechanics::DrawState_Spell);
+
+            if (Settings::Manager::getBool("quick casting", "Input"))
+            {
+                // Weapon must be equipped to quick cast
+                MWBase::Environment::get().getWorld()->getPlayer().setDrawState(MWMechanics::DrawState_Weapon);
+
+                if (Settings::Manager::getBool("quickkey casting", "Input"))
+                {
+                    // cast right away if quickkey casting is enabled
+                    MWBase::Environment::get().getWorld()->getPlayer().setQuickCasting(true);
+                }
+            }
+            else
+            { 
+                MWBase::Environment::get().getWorld()->getPlayer().setDrawState(MWMechanics::DrawState_Spell);
+            }
 
             /*
                 Start of tes3mp addition

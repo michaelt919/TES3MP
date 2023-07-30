@@ -250,7 +250,14 @@ namespace MWInput
             rest();
             break;
         case A_ToggleSpell:
-            toggleSpell();
+            if (Settings::Manager::getBool("quick casting", "Input"))
+            {
+                quickCastSpell();
+            }
+            else
+            {
+                toggleSpell();
+            }
             break;
         case A_QuickKey1:
             quickKey(1);
@@ -400,6 +407,24 @@ namespace MWInput
         {
             MWBase::Environment::get().getWindowManager()->exitCurrentGuiMode();
         }
+    }
+
+    void ActionManager::quickCastSpell()
+    {
+        /*
+            Start of tes3mp addition
+
+            Prevent players from starting attacks while in the persuasion submenu in dialogue
+        */
+        if (MWBase::Environment::get().getWindowManager()->containsMode(MWGui::GM_Dialogue))
+            return;
+        /*
+            End of tes3mp addition
+        */
+
+        MWWorld::Player& player = MWBase::Environment::get().getWorld()->getPlayer();
+        MWMechanics::DrawState_ state = player.getDrawState();
+        player.setQuickCasting(state != MWMechanics::DrawState_Nothing);
     }
 
     void ActionManager::toggleSpell()

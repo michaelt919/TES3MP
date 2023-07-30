@@ -57,6 +57,7 @@ namespace MWWorld
         MWMechanics::AttributeValue mSaveAttributes[ESM::Attribute::Length];
 
         bool mAttackingOrSpell;
+        bool mQuickCasting;
         bool mJumping;
 
     public:
@@ -113,6 +114,9 @@ namespace MWWorld
 
         void setAttackingOrSpell(bool attackingOrSpell);
         bool getAttackingOrSpell() const;
+
+        void setQuickCasting(bool quickCasting);
+        bool getQuickCasting() const;
 
         void setJumping(bool jumping);
         bool getJumping() const;

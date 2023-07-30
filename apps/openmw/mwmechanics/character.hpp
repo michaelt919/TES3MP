@@ -189,6 +189,7 @@ class CharacterController : public MWRender::Animation::TextKeyListener
     std::string mAttackType; // slash, chop or thrust
 
     bool mAttackingOrSpell;
+    bool mQuickCasting;
     bool mCastingManualSpell;
 
     float mTimeUntilWake;
@@ -286,6 +287,7 @@ public:
 
     void setVisibility(float visibility);
     void setAttackingOrSpell(bool attackingOrSpell);
+    void setQuickCasting(bool quickCasting);
     void castSpell(const std::string spellId, bool manualSpell=false);
     void setAIAttackType(const std::string& attackType);
     static void setAttackTypeRandomly(std::string& attackType);

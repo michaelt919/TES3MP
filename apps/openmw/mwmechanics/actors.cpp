@@ -2099,6 +2099,7 @@ namespace MWMechanics
                     bool state = MWBase::Environment::get().getWorld()->getPlayer().getAttackingOrSpell();
                     DrawState_ dstate = player.getClass().getNpcStats(player).getDrawState();
                     ctrl->setAttackingOrSpell(world->getPlayer().getAttackingOrSpell());
+                    ctrl->setQuickCasting(world->getPlayer().getQuickCasting());
 
                     if (dstate == DrawState_Weapon)
                     {

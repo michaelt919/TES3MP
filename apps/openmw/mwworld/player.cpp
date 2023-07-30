@@ -51,6 +51,7 @@ namespace MWWorld
         mCurrentCrimeId(-1),
         mPaidCrimeId(-1),
         mAttackingOrSpell(false),
+        mQuickCasting(false),
         mJumping(false)
     {
         ESM::CellRef cellRef;
@@ -300,6 +301,16 @@ namespace MWWorld
         return mAttackingOrSpell;
     }
 
+    void Player::setQuickCasting(bool quickCasting)
+    {
+        mQuickCasting = quickCasting;
+    }
+
+    bool Player::getQuickCasting() const
+    {
+        return mQuickCasting;
+    }
+
     void Player::setJumping(bool jumping)
     {
         mJumping = jumping;
@@ -341,6 +352,7 @@ namespace MWWorld
         mForwardBackward = 0;
         mTeleported = false;
         mAttackingOrSpell = false;
+        mQuickCasting = false;
         mJumping = false;
         mCurrentCrimeId = -1;
         mPaidCrimeId = -1;

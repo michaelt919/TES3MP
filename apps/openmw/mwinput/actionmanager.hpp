@@ -30,6 +30,7 @@ namespace MWInput
         bool checkAllowedToUseItems() const;
 
         void toggleMainMenu();
+        void quickCastSpell();
         void toggleSpell();
         void toggleWeapon();
         void toggleInventory();

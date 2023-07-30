@@ -728,7 +728,17 @@ namespace MWInput
 
                     MWWorld::Player& player = MWBase::Environment::get().getWorld()->getPlayer();
                     MWMechanics::DrawState_ state = player.getDrawState();
-                    player.setAttackingOrSpell(currentValue != 0 && state != MWMechanics::DrawState_Nothing);
+
+                    if (currentValue != 0)
+                    {
+                        bool weaponDrawn = state != MWMechanics::DrawState_Nothing;
+                        player.setAttackingOrSpell(weaponDrawn);
+
+                        if (!weaponDrawn && Settings::Manager::getBool("use to draw weapon", "Input"))
+                        {
+                            MWBase::Environment::get().getWorld()->getPlayer().setDrawState(MWMechanics::DrawState_Weapon);
+                        }
+                    }
                 }
             }
             else if (action == A_Jump)

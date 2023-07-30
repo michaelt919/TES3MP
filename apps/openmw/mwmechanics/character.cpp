@@ -925,6 +925,7 @@ CharacterController::CharacterController(const MWWorld::Ptr &ptr, MWRender::Anim
     , mSecondsOfRunning(0)
     , mTurnAnimationThreshold(0)
     , mAttackingOrSpell(false)
+    , mQuickCasting(false)
     , mCastingManualSpell(false)
     , mTimeUntilWake(0.f)
     , mIsMovingBackward(false)
@@ -1230,7 +1231,7 @@ bool CharacterController::updateCreatureState()
             mAnimation->disable(mCurrentWeapon);
     }
 
-    if(mAttackingOrSpell)
+    if(mAttackingOrSpell || mQuickCasting)
     {
         if(mUpperBodyState == UpperCharState_Nothing && mHitState == CharState_None)
         {
@@ -1238,7 +1239,7 @@ bool CharacterController::updateCreatureState()
 
             std::string startKey = "start";
             std::string stopKey = "stop";
-            if (weapType == ESM::Weapon::Spell)
+            if (mQuickCasting || weapType == ESM::Weapon::Spell)
             {
                 const std::string spellid = stats.getSpells().getSelectedSpell();
                 bool canCast = mCastingManualSpell || MWBase::Environment::get().getWorld()->startSpellCast(mPtr);
@@ -1319,6 +1320,7 @@ bool CharacterController::updateCreatureState()
         }
 
         mAttackingOrSpell = false;
+        mQuickCasting = false;
     }
 
     bool animPlaying = mAnimation->getInfo(mCurrentWeapon);
@@ -1394,6 +1396,7 @@ bool CharacterController::updateWeaponState(CharacterState& idle)
         forcestateupdate = true;
         mUpperBodyState = UpperCharState_WeapEquiped;
         mAttackingOrSpell = false;
+        mQuickCasting = false;
         mAnimation->disable(mCurrentWeapon);
         mAnimation->showWeapons(true);
         if (mPtr == getPlayer())
@@ -1572,12 +1575,12 @@ bool CharacterController::updateWeaponState(CharacterState& idle)
     float complete;
     bool animPlaying;
     ESM::WeaponType::Class weapclass = getWeaponType(mWeaponType)->mWeaponClass;
-    if(mAttackingOrSpell)
+    if(mAttackingOrSpell || mQuickCasting)
     {
         MWWorld::Ptr player = getPlayer();
 
         bool resetIdle = ammunition;
-        if(mUpperBodyState == UpperCharState_WeapEquiped && (mHitState == CharState_None || mHitState == CharState_Block))
+        if((mQuickCasting || mUpperBodyState == UpperCharState_WeapEquiped) && (mHitState == CharState_None || mHitState == CharState_Block))
         {
             MWBase::Environment::get().getWorld()->breakInvisibility(mPtr);
             mAttackStrength = 0;
@@ -1590,14 +1593,23 @@ bool CharacterController::updateWeaponState(CharacterState& idle)
                 mCurrentWeapon = chooseRandomAttackAnimation();
             }
 
-            if(mWeaponType == ESM::Weapon::Spell)
+            if(mQuickCasting || mWeaponType == ESM::Weapon::Spell)
             {
                 // Unset casting flag, otherwise pressing the mouse button down would
                 // continue casting every frame if there is no animation
                 mAttackingOrSpell = false;
+
+                if (mQuickCasting)
+                {
+                    // Override weapon animation if quick casting
+                    mCurrentWeapon = getWeaponAnimation(ESM::Weapon::Spell);
+                    mQuickCasting = false;
+                }
+
                 if (mPtr == player)
                 {
                     MWBase::Environment::get().getWorld()->getPlayer().setAttackingOrSpell(false);
+                    MWBase::Environment::get().getWorld()->getPlayer().setQuickCasting(false);
 
                     // For the player, set the spell we want to cast
                     // This has to be done at the start of the casting animation,
@@ -2862,6 +2874,7 @@ void CharacterController::forceStateUpdate()
     // because we disabled attack animations anyway.
     mCastingManualSpell = false;
     mAttackingOrSpell = false;
+    mQuickCasting = false;
     if (mUpperBodyState != UpperCharState_Nothing)
         mUpperBodyState = UpperCharState_WeapEquiped;
 
@@ -3066,6 +3079,11 @@ bool CharacterController::isRunning() const
             mMovementState == CharState_SwimRunBack ||
             mMovementState == CharState_SwimRunLeft ||
             mMovementState == CharState_SwimRunRight;
+}
+
+void CharacterController::setQuickCasting(bool quickCasting)
+{
+    mQuickCasting = quickCasting;
 }
 
 void CharacterController::setAttackingOrSpell(bool attackingOrSpell)

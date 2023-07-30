@@ -216,6 +216,7 @@ namespace MWMechanics
         {
             storage.stopAttack();
             characterController.setAttackingOrSpell(false);
+            characterController.setQuickCasting(false);
 
             /*
                 Start of tes3mp addition
@@ -363,6 +364,7 @@ namespace MWMechanics
                     storage.mUseCustomDestination = false;
                     storage.stopAttack();
                     characterController.setAttackingOrSpell(false);
+                    characterController.setQuickCasting(false);
                     currentAction.reset(new ActionFlee());
                     actionCooldown = currentAction->getActionCooldown();
                     storage.startFleeing();
