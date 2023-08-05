@@ -521,7 +521,17 @@ namespace MWGui
 
         mPriceLabel->setCaption(MyGUI::utility::toString(int(price)));
 
-        float chance = MWMechanics::calcSpellBaseSuccessChance(&mSpell, MWMechanics::getPlayer(), nullptr);
+        int effectiveSchool;
+        float chance = MWMechanics::calcSpellBaseSuccessChance(&mSpell, MWMechanics::getPlayer(), &effectiveSchool);
+
+        if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+        {
+            float effectiveSkill = MWMechanics::getPlayer().getClass().getSkill(MWMechanics::getPlayer(), MWMechanics::spellSchoolToSkill(effectiveSchool));
+
+            // Magicka cost will increase to simultaneously increase chance of success, up to the casters available magicka (assume full magicka for the purpose of spell creation).
+            float projectedCost = std::min(mSpell.mData.mCost * std::max(1.0f, 100.0f / effectiveSkill), MWMechanics::getPlayer().getClass().getCreatureStats(MWMechanics::getPlayer()).getMagicka().getBase());
+            chance *= projectedCost / mSpell.mData.mCost;
+        }
 
         int intChance = std::min(100, int(chance));
         mSuccessChance->setCaption(MyGUI::utility::toString(intChance));

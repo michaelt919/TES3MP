@@ -11,6 +11,7 @@
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
+#include <components/settings/settings.hpp>
 
 namespace MWMechanics
 {
@@ -131,7 +132,17 @@ namespace MWMechanics
 
         float castBonus = -stats.getMagicEffects().get(ESM::MagicEffect::Sound).getMagnitude();
         float castChance = baseChance + castBonus;
-        castChance *= stats.getFatigueTerm();
+        float fatigueTerm = stats.getFatigueTerm();
+        castChance *= fatigueTerm;
+
+        if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+        {
+            float effectiveSkill = actor.getClass().getSkill(actor, MWMechanics::spellSchoolToSkill(*effectiveSchool));
+
+            // Magicka cost will increase to simultaneously increase chance of success, up to the casters available magicka.
+            float projectedCost = std::min(spell->mData.mCost * std::max(1.0f, 100.0f / (effectiveSkill * fatigueTerm)), actor.getClass().getCreatureStats(actor).getMagicka().getCurrent());
+            castChance *= projectedCost / spell->mData.mCost;
+        }
 
         return std::max(0.f, cap ? std::min(100.f, castChance) : castChance);
     }

@@ -96,6 +96,7 @@
 
 #include "contentloader.hpp"
 #include "esmloader.hpp"
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 
 namespace
 {
@@ -3530,7 +3531,23 @@ namespace MWWorld
             // Reduce mana
             if (!fail && !godmode)
             {
-                magicka.setCurrent(magicka.getCurrent() - spell->mData.mCost);
+                if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+                {
+                    float fatigueTerm = stats.getFatigueTerm();
+                    int effectiveSchool;
+                    float baseSuccessChance = MWMechanics::calcSpellBaseSuccessChance(spell, actor, &effectiveSchool);
+                    float effectiveSkill = actor.getClass().getSkill(actor, MWMechanics::spellSchoolToSkill(effectiveSchool));
+
+                    // Magicka cost will increase to simultaneously increase chance of success, up to the casters available magicka.
+                    float adjustedCost = std::min(spell->mData.mCost * std::max(1.0f, 100.0f / (effectiveSkill * fatigueTerm)), magicka.getCurrent());
+
+                    magicka.setCurrent(magicka.getCurrent() - adjustedCost);
+                }
+                else
+                {
+                    magicka.setCurrent(magicka.getCurrent() - spell->mData.mCost);
+                }
+
                 stats.setMagicka(magicka);
             }
         }
