@@ -555,9 +555,6 @@ namespace MWGui
 
             if (Settings::Manager::getBool("quick casting", "Input"))
             {
-                // Weapon must be equipped to quick cast
-                MWBase::Environment::get().getWorld()->getPlayer().setDrawState(MWMechanics::DrawState_Weapon);
-
                 if (Settings::Manager::getBool("quickkey casting", "Input"))
                 {
                     // cast right away if quickkey casting is enabled

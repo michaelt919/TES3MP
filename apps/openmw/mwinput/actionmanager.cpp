@@ -424,7 +424,7 @@ namespace MWInput
 
         MWWorld::Player& player = MWBase::Environment::get().getWorld()->getPlayer();
         MWMechanics::DrawState_ state = player.getDrawState();
-        player.setQuickCasting(state != MWMechanics::DrawState_Nothing);
+        player.setQuickCasting(true);
     }
 
     void ActionManager::toggleSpell()
