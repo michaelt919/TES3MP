@@ -511,8 +511,6 @@ namespace MWGui
         mSpell.mData.mType = ESM::Spell::ST_Spell;
         mSpell.mData.mFlags = 0;
 
-        mMagickaCost->setCaption(MyGUI::utility::toString(int(y)));
-
         float fSpellMakingValueMult =
             store.get<ESM::GameSetting>().find("fSpellMakingValueMult")->mValue.getFloat();
 
@@ -521,16 +519,24 @@ namespace MWGui
 
         mPriceLabel->setCaption(MyGUI::utility::toString(int(price)));
 
+        MWWorld::Ptr player = MWMechanics::getPlayer();
         int effectiveSchool;
-        float chance = MWMechanics::calcSpellBaseSuccessChance(&mSpell, MWMechanics::getPlayer(), &effectiveSchool);
+        float chance = MWMechanics::calcSpellBaseSuccessChance(&mSpell, player, &effectiveSchool);
 
         if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
         {
-            float effectiveSkill = MWMechanics::getPlayer().getClass().getSkill(MWMechanics::getPlayer(), MWMechanics::spellSchoolToSkill(effectiveSchool));
+            float maxMagicka = player.getClass().getCreatureStats(player).getMagicka().getBase();
 
+            // Adjust cast chance here rather than using the function typically called so it's based on player's max magicka, not current.
             // Magicka cost will increase to simultaneously increase chance of success, up to the casters available magicka (assume full magicka for the purpose of spell creation).
-            float projectedCost = std::min(mSpell.mData.mCost * std::max(1.0f, 100.0f / effectiveSkill), MWMechanics::getPlayer().getClass().getCreatureStats(MWMechanics::getPlayer()).getMagicka().getBase());
-            chance *= projectedCost / mSpell.mData.mCost;
+            float adjustedCost = MWMechanics::getMagickaLimitedAdjustedSpellCost(mSpell, player, effectiveSchool, maxMagicka);
+            chance *= adjustedCost / y; // "y" is the spell cost
+
+            mMagickaCost->setCaption(MyGUI::utility::toString(static_cast<int>(adjustedCost)));
+        }
+        else
+        {
+            mMagickaCost->setCaption(MyGUI::utility::toString(y));
         }
 
         int intChance = std::min(100, int(chance));

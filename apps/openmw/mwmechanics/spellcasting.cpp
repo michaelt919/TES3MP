@@ -740,7 +740,7 @@ namespace MWMechanics
                 DynamicStat<float> fatigue = stats.getFatigue();
                 const float normalizedEncumbrance = mCaster.getClass().getNormalizedEncumbrance(mCaster);
 
-                float fatigueLoss = spell->mData.mCost * (fFatigueSpellBase + normalizedEncumbrance * fFatigueSpellMult);
+                float fatigueLoss = MWMechanics::getMagickaLimitedAdjustedSpellCost(*spell, mCaster, stats.getMagicka().getCurrent()) * (fFatigueSpellBase + normalizedEncumbrance * fFatigueSpellMult);
                 fatigue.setCurrent(fatigue.getCurrent() - fatigueLoss); 
                 stats.setFatigue(fatigue);
 

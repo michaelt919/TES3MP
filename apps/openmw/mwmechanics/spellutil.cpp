@@ -106,7 +106,12 @@ namespace MWMechanics
     float getSpellSuccessChance (const ESM::Spell* spell, const MWWorld::Ptr& actor, int* effectiveSchool, bool cap, bool checkMagicka)
     {
         // NB: Base chance is calculated here because the effective school pointer must be filled
-        float baseChance = calcSpellBaseSuccessChance(spell, actor, effectiveSchool);
+        int effectiveSchoolVal;  // We may need the school for adjusting cast chance, even if a pointer wasn't passed in
+        float baseChance = calcSpellBaseSuccessChance(spell, actor, &effectiveSchoolVal);
+        if (effectiveSchool != nullptr)
+        {
+            *effectiveSchool = effectiveSchoolVal; // Update the pointer passed in if it isn't nullptr
+        }
 
         bool godmode = actor == getPlayer() && MWBase::Environment::get().getWorld()->getGodModeState();
 
@@ -137,11 +142,8 @@ namespace MWMechanics
 
         if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
         {
-            float effectiveSkill = actor.getClass().getSkill(actor, MWMechanics::spellSchoolToSkill(*effectiveSchool));
-
-            // Magicka cost will increase to simultaneously increase chance of success, up to the casters available magicka.
-            float projectedCost = std::min(spell->mData.mCost * std::max(1.0f, 100.0f / (effectiveSkill * fatigueTerm)), actor.getClass().getCreatureStats(actor).getMagicka().getCurrent());
-            castChance *= projectedCost / spell->mData.mCost;
+            // Magicka cost will increase to simultaneously increase chance of success, up to the caster's available magicka.
+            castChance *= getMagickaLimitedAdjustedSpellCost(*spell, actor, effectiveSchoolVal, stats.getMagicka().getCurrent()) / spell->mData.mCost;
         }
 
         return std::max(0.f, cap ? std::min(100.f, castChance) : castChance);
@@ -152,6 +154,63 @@ namespace MWMechanics
         if (const auto spell = MWBase::Environment::get().getWorld()->getStore().get<ESM::Spell>().search(spellId))
             return getSpellSuccessChance(spell, actor, effectiveSchool, cap, checkMagicka);
         return 0.f;
+    }
+
+    float getAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, int spellSchool)
+    {
+        if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+        {
+            const CreatureStats& stats = actor.getClass().getCreatureStats(actor);
+            float spellSkill = actor.getClass().getSkill(actor, MWMechanics::spellSchoolToSkill(spellSchool));
+            float actorWillpower = stats.getAttribute(ESM::Attribute::Willpower).getModified();
+            float actorLuck = stats.getAttribute(ESM::Attribute::Luck).getModified();
+
+            // this is the point at which the spell will always succeed (barring "sound" spells) and magicka cost starts going down even more quickly
+            float skillThreshold = spell.mData.mCost - 0.2f * actorWillpower - 0.1f * actorLuck;
+
+            // below this skill level, chance to successfully cast is zero no matter what
+            // everything is halved since skill is multiplied by 2 in the cast chance calculation
+            float minSkill = 0.5f * skillThreshold;
+
+            // Once the skill level passes the threshold at which the spell always succeeds, the cost starts going down more rapidly
+            // This is effectively just the base cast chance once skill passes skill threshold (and just the skill level itself before that threshold)
+            float adjustedSkill = std::max(minSkill, spellSkill + std::max(0.0f, spellSkill - skillThreshold));
+
+            float fatigueTerm = stats.getFatigueTerm();
+
+            // Magicka cost will increase to simultaneously increase chance of success
+            // Cost should never drop below base cost
+            return spell.mData.mCost * std::max(1.0f, 100.0f / (adjustedSkill * fatigueTerm));
+        }
+        else
+        {
+            return spell.mData.mCost;
+        }
+    }
+
+    float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, int spellSchool, float magicka)
+    {
+        if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+        {
+            // Magicka cost is limited to the caster's available magicka, or the base cost of the spell, whichever is more.
+            return std::min(getAdjustedSpellCost(spell, actor, spellSchool), std::max(static_cast<float>(spell.mData.mCost), magicka));
+        }
+        else
+        {
+            return spell.mData.mCost;
+        }
+    }
+
+    float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, float magicka)
+    {
+        if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+        {
+            return getMagickaLimitedAdjustedSpellCost(spell, actor, MWMechanics::getSpellSchool(&spell, actor), magicka);
+        }
+        else
+        {
+            return spell.mData.mCost;
+        }
     }
 
     int getSpellSchool(const std::string& spellId, const MWWorld::Ptr& actor)

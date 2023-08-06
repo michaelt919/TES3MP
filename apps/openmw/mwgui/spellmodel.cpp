@@ -12,6 +12,7 @@
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/inventorystore.hpp"
 #include "../mwworld/class.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 
 namespace
 {
@@ -109,8 +110,10 @@ namespace MWGui
             if (spell->mData.mType == ESM::Spell::ST_Spell)
             {
                 newSpell.mType = Spell::Type_Spell;
-                std::string cost = std::to_string(spell->mData.mCost);
-                std::string chance = std::to_string(int(MWMechanics::getSpellSuccessChance(spell, mActor)));
+                float magicka = mActor.getClass().getCreatureStats(mActor).getMagicka().getCurrent();
+                int effectiveSchool;
+                std::string chance = std::to_string(static_cast<int>(MWMechanics::getSpellSuccessChance(spell, mActor, &effectiveSchool)));
+                std::string cost = std::to_string(static_cast<int>(MWMechanics::getMagickaLimitedAdjustedSpellCost(*spell, mActor, effectiveSchool, magicka)));
                 newSpell.mCostColumn = cost + "/" + chance;
             }
             else

@@ -251,7 +251,19 @@ namespace MWGui
                     }
                     std::string cost = focus->getUserString("SpellCost");
                     if (cost != "" && cost != "0")
-                        info.text += MWGui::ToolTips::getValueString(spell->mData.mCost, "#{sCastCost}");
+                    {
+                        if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+                        {
+                            MWWorld::Ptr player = MWMechanics::getPlayer();
+                            float magicka = player.getClass().getCreatureStats(player).getMagicka().getCurrent();
+                            int adjustedCost = static_cast<int>(MWMechanics::getMagickaLimitedAdjustedSpellCost(*spell, MWMechanics::getPlayer(), magicka));
+                            info.text += MWGui::ToolTips::getValueString(adjustedCost, "#{sCastCost}");
+                        }
+                        else
+                        {
+                            info.text += MWGui::ToolTips::getValueString(spell->mData.mCost, "#{sCastCost}");
+                        }
+                    }
                     info.effects = effects;
                     tooltipSize = createToolTip(info);
                 }

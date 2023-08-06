@@ -28,6 +28,7 @@
 
 #include "../mwmechanics/creaturestats.hpp"
 #include "../mwmechanics/actorutil.hpp"
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 
 namespace MWGui
 {
@@ -83,7 +84,17 @@ namespace MWGui
         toAdd->eventMouseWheel += MyGUI::newDelegate(this, &SpellBuyingWindow::onMouseWheel);
         toAdd->setUserString("ToolTipType", "Spell");
         toAdd->setUserString("Spell", spell.mId);
-        toAdd->setUserString("SpellCost", std::to_string(spell.mData.mCost));
+
+        if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+        {
+            float maxMagicka = player.getClass().getCreatureStats(player).getMagicka().getBase();
+            toAdd->setUserString("SpellCost", std::to_string(static_cast<int>(MWMechanics::getMagickaLimitedAdjustedSpellCost(spell, player, maxMagicka))));
+        }
+        else
+        {
+            toAdd->setUserString("SpellCost", std::to_string(spell.mData.mCost));
+        }
+
         toAdd->eventMouseButtonClick += MyGUI::newDelegate(this, &SpellBuyingWindow::onSpellButtonClick);
         mSpellsWidgetMap.insert(std::make_pair (toAdd, spell.mId));
     }
