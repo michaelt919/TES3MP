@@ -726,7 +726,7 @@ namespace MWMechanics
 
         bool godmode = mCaster == MWMechanics::getPlayer() && MWBase::Environment::get().getWorld()->getGodModeState();
 
-        if (mCaster.getClass().isActor() && !mAlwaysSucceed && !mManualSpell)
+        if (mCaster.getClass().isActor() && !mManualSpell)
         {
             school = getSpellSchool(spell, mCaster);
 
@@ -734,48 +734,63 @@ namespace MWMechanics
 
             if (!godmode)
             {
-                // Reduce fatigue (note that in the vanilla game, both GMSTs are 0, and there's no fatigue loss)
-                static const float fFatigueSpellBase = store.get<ESM::GameSetting>().find("fFatigueSpellBase")->mValue.getFloat();
-                static const float fFatigueSpellMult = store.get<ESM::GameSetting>().find("fFatigueSpellMult")->mValue.getFloat();
-                DynamicStat<float> fatigue = stats.getFatigue();
-                const float normalizedEncumbrance = mCaster.getClass().getNormalizedEncumbrance(mCaster);
-
-                float fatigueLoss = MWMechanics::getMagickaLimitedAdjustedSpellCost(*spell, mCaster, stats.getMagicka().getCurrent()) * (fFatigueSpellBase + normalizedEncumbrance * fFatigueSpellMult);
-                fatigue.setCurrent(fatigue.getCurrent() - fatigueLoss); 
-                stats.setFatigue(fatigue);
-
                 bool fail = false;
+                DynamicStat<float> magicka = stats.getMagicka();
+                float adjustedSpellCost = MWMechanics::getMagickaLimitedAdjustedSpellCost(*spell, mCaster, magicka.getCurrent());
 
-                /*
-                    Start of tes3mp change (major)
-                
-                    Make spell casting fail based on the casting success rated determined
-                    in MechanicsHelper::getSpellSuccess()
-                */
-                mwmp::Cast *localCast = NULL;
-                mwmp::Cast *dedicatedCast = MechanicsHelper::getDedicatedCast(mCaster);
-
-                if (dedicatedCast)
-                    dedicatedCast->pressed = false;
-                else
+                if (!mAlwaysSucceed) // Note: "always succeed" spells should still cost magicka (?)
                 {
-                    localCast = MechanicsHelper::getLocalCast(mCaster);
-                    localCast->success = MechanicsHelper::getSpellSuccess(mId, mCaster);
-                    localCast->pressed = false;
-                    localCast->shouldSend = true;
+                    // Reduce fatigue (note that in the vanilla game, both GMSTs are 0, and there's no fatigue loss)
+                    static const float fFatigueSpellBase = store.get<ESM::GameSetting>().find("fFatigueSpellBase")->mValue.getFloat();
+                    static const float fFatigueSpellMult = store.get<ESM::GameSetting>().find("fFatigueSpellMult")->mValue.getFloat();
+                    DynamicStat<float> fatigue = stats.getFatigue();
+                    const float normalizedEncumbrance = mCaster.getClass().getNormalizedEncumbrance(mCaster);
+
+                    float fatigueLoss = adjustedSpellCost * (fFatigueSpellBase + normalizedEncumbrance * fFatigueSpellMult);
+                    fatigue.setCurrent(fatigue.getCurrent() - fatigueLoss);
+                    stats.setFatigue(fatigue);
+
+                    /*
+                        Start of tes3mp change (major)
+
+                        Make spell casting fail based on the casting success rated determined
+                        in MechanicsHelper::getSpellSuccess()
+                    */
+                    mwmp::Cast* localCast = NULL;
+                    mwmp::Cast* dedicatedCast = MechanicsHelper::getDedicatedCast(mCaster);
+
+                    if (dedicatedCast)
+                        dedicatedCast->pressed = false;
+                    else
+                    {
+                        localCast = MechanicsHelper::getLocalCast(mCaster);
+                        localCast->success = MechanicsHelper::getSpellSuccess(mId, mCaster);
+                        localCast->pressed = false;
+                        localCast->shouldSend = true;
+                    }
+
+                    // Check success
+                    if ((localCast && localCast->success == false) ||
+                        (dedicatedCast && dedicatedCast->success == false))
+                    {
+                        if (mCaster == getPlayer())
+                            MWBase::Environment::get().getWindowManager()->messageBox("#{sMagicSkillFail}");
+                        fail = true;
+                    }
+                    /*
+                        End of tes3mp change (major)
+                    */
                 }
 
-                // Check success
-                if ((localCast && localCast->success == false) ||
-                    (dedicatedCast && dedicatedCast->success == false))
+                // If "easy spells usually succeed" is enabled, paying the magicka is deferred until now
+                // We still pay the cost regardless of whether the spell succeeded
+                // Make sure we pay magicka cost after calculating anything that would be effected by it (i.e. spell success chance)
+                if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
                 {
-                    if (mCaster == getPlayer())
-                        MWBase::Environment::get().getWindowManager()->messageBox("#{sMagicSkillFail}");
-                    fail = true;
+                    // Magicka cost will increase to simultaneously increase chance of success, up to the casters available magicka.
+                    magicka.setCurrent(magicka.getCurrent() - adjustedSpellCost);
+                    stats.setMagicka(magicka);
                 }
-                /*
-                    End of tes3mp change (major)
-                */
 
                 if (fail)
                 {

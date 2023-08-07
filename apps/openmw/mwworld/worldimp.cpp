@@ -3531,17 +3531,13 @@ namespace MWWorld
             // Reduce mana
             if (!fail && !godmode)
             {
-                if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
-                {
-                    // Magicka cost will increase to simultaneously increase chance of success, up to the casters available magicka.
-                    magicka.setCurrent(magicka.getCurrent() - MWMechanics::getMagickaLimitedAdjustedSpellCost(*spell, actor, magicka.getCurrent()));
-                }
-                else
+                if (!Settings::Manager::getBool("easy spells usually succeed", "Game"))
                 {
                     magicka.setCurrent(magicka.getCurrent() - spell->mData.mCost);
+                    stats.setMagicka(magicka);
                 }
-
-                stats.setMagicka(magicka);
+                // If using "easy spells usually succeed" is enabled, defer paying the magicka cost until right before the spell is actually cast
+                // This ensures that spell chance is calculated based on magicka before casting, not after.
             }
         }
 
