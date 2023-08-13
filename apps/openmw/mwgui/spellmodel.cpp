@@ -111,9 +111,14 @@ namespace MWGui
             {
                 newSpell.mType = Spell::Type_Spell;
                 float magicka = mActor.getClass().getCreatureStats(mActor).getMagicka().getCurrent();
+
+                // Use ceil() on spell success chance since the integer dieroll is in the range [0, 99] and must be less than the floating-point chance (see MechanicsHelper::getSpellSuccess)
+                // -- i.e. 99.01% always succeeds, 98.01% succeeds except on a roll of 99, etc... 0.01% will succeed on a roll of 0.
                 int effectiveSchool;
-                std::string chance = std::to_string(static_cast<int>(MWMechanics::getSpellSuccessChance(spell, mActor, &effectiveSchool)));
-                std::string cost = std::to_string(static_cast<int>(MWMechanics::getMagickaLimitedAdjustedSpellCost(*spell, mActor, effectiveSchool, magicka)));
+                std::string chance = std::to_string(static_cast<int>(std::ceil(MWMechanics::getSpellSuccessChance(spell, mActor, &effectiveSchool))));
+
+                std::string cost = std::to_string(static_cast<int>(MWMechanics::getMagickaLimitedAdjustedSpellCost(
+                    *spell, mActor, magicka, mActor.getClass().getCreatureStats(mActor).getFatigueTerm(), effectiveSchool)));
                 newSpell.mCostColumn = cost + "/" + chance;
             }
             else

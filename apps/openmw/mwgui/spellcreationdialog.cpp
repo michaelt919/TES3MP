@@ -529,17 +529,19 @@ namespace MWGui
 
             // Adjust cast chance here rather than using the function typically called so it's based on player's max magicka, not current.
             // Magicka cost will increase to simultaneously increase chance of success, up to the casters available magicka (assume full magicka for the purpose of spell creation).
-            float adjustedCost = MWMechanics::getMagickaLimitedAdjustedSpellCost(mSpell, player, effectiveSchool, maxMagicka);
-            chance *= adjustedCost / y; // "y" is the spell cost
+            float adjustedCost = MWMechanics::getMagickaLimitedAdjustedSpellCost(mSpell, player, maxMagicka, /* assume fatigue term is 1.0 for spell buying */ 1.0, effectiveSchool);
+            chance *= adjustedCost / mSpell.mData.mCost;
 
             mMagickaCost->setCaption(MyGUI::utility::toString(static_cast<int>(adjustedCost)));
         }
         else
         {
-            mMagickaCost->setCaption(MyGUI::utility::toString(y));
+            mMagickaCost->setCaption(MyGUI::utility::toString(mSpell.mData.mCost));
         }
 
-        int intChance = std::min(100, int(chance));
+        // Use ceil() on spell success chance since the integer dieroll is in the range [0, 99] and must be less than the floating-point chance (see MechanicsHelper::getSpellSuccess)
+        // -- i.e. 99.01% always succeeds, 98.01% succeeds except on a roll of 99, etc... 0.01% will succeed on a roll of 0.
+        int intChance = std::min(100, static_cast<int>(std::ceil(chance)));
         mSuccessChance->setCaption(MyGUI::utility::toString(intChance));
     }
 

@@ -88,7 +88,8 @@ namespace MWGui
         if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
         {
             float maxMagicka = player.getClass().getCreatureStats(player).getMagicka().getBase();
-            toAdd->setUserString("SpellCost", std::to_string(static_cast<int>(MWMechanics::getMagickaLimitedAdjustedSpellCost(spell, player, maxMagicka))));
+            toAdd->setUserString("SpellCost", std::to_string(static_cast<int>(MWMechanics::getMagickaLimitedAdjustedSpellCost(
+                spell, player, maxMagicka, /* assume fatigue term is 1.0 for spell buying */ 1.0))));
         }
         else
         {

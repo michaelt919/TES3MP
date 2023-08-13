@@ -1433,8 +1433,10 @@ void LocalPlayer::setSelectedSpell()
     if (!spells.hasSpell(selectedSpellId))
         return;
  
+    // Use ceil() on spell success chance since the integer dieroll is in the range [0, 99] and must be less than the floating-point chance (see MechanicsHelper::getSpellSuccess)
+    // -- i.e. 99.01% always succeeds, 98.01% succeeds except on a roll of 99, etc... 0.01% will succeed on a roll of 0.
     MWBase::Environment::get().getWindowManager()->setSelectedSpell(selectedSpellId,
-        int(MWMechanics::getSpellSuccessChance(selectedSpellId, ptrPlayer)));
+        int(std::ceil(MWMechanics::getSpellSuccessChance(selectedSpellId, ptrPlayer))));
 }
 
 void LocalPlayer::sendDeath(char newDeathState)

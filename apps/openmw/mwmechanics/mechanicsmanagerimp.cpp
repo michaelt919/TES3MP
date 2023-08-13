@@ -336,7 +336,9 @@ namespace MWMechanics
         {
             const std::string& spell = winMgr->getSelectedSpell();
             if (!spell.empty())
-                winMgr->setSelectedSpell(spell, int(MWMechanics::getSpellSuccessChance(spell, ptr)));
+                // Use ceil() on spell success chance since the integer dieroll is in the range [0, 99] and must be less than the floating-point chance (see MechanicsHelper::getSpellSuccess)
+                // -- i.e. 99.01% always succeeds, 98.01% succeeds except on a roll of 99, etc... 0.01% will succeed on a roll of 0.
+                winMgr->setSelectedSpell(spell, int(std::ceil(MWMechanics::getSpellSuccessChance(spell, ptr))));
             else
                 winMgr->unsetSelectedSpell();
         }

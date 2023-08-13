@@ -550,8 +550,11 @@ namespace MWGui
             }
 
             store.setSelectedEnchantItem(store.end());
+
+            // Use ceil() on spell success chance since the integer dieroll is in the range [0, 99] and must be less than the floating-point chance (see MechanicsHelper::getSpellSuccess)
+            // -- i.e. 99.01% always succeeds, 98.01% succeeds except on a roll of 99, etc... 0.01% will succeed on a roll of 0.
             MWBase::Environment::get().getWindowManager()
-                ->setSelectedSpell(spellId, int(MWMechanics::getSpellSuccessChance(spellId, player)));
+                ->setSelectedSpell(spellId, int(std::ceil(MWMechanics::getSpellSuccessChance(spellId, player))));
 
             if (Settings::Manager::getBool("quick casting", "Input"))
             {

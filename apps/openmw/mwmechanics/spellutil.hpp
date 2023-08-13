@@ -38,7 +38,8 @@ namespace MWMechanics
 
     float getAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, int spellSchool);
     float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, float magicka);
-    float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, int spellSchool, float magicka);
+    float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, float magicka, float fatigueTerm);
+    float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, float magicka, float fatigueTerm, int spellSchool);
 
     int getSpellSchool(const std::string& spellId, const MWWorld::Ptr& actor);
     int getSpellSchool(const ESM::Spell* spell, const MWWorld::Ptr& actor);

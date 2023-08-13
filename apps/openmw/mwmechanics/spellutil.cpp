@@ -143,7 +143,7 @@ namespace MWMechanics
         if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
         {
             // Magicka cost will increase to simultaneously increase chance of success, up to the caster's available magicka.
-            castChance *= getMagickaLimitedAdjustedSpellCost(*spell, actor, effectiveSchoolVal, stats.getMagicka().getCurrent()) / spell->mData.mCost;
+            castChance *= getMagickaLimitedAdjustedSpellCost(*spell, actor, stats.getMagicka().getCurrent(), fatigueTerm, effectiveSchoolVal) / spell->mData.mCost;
         }
 
         return std::max(0.f, cap ? std::min(100.f, castChance) : castChance);
@@ -176,11 +176,9 @@ namespace MWMechanics
             // This is effectively just the base cast chance once skill passes skill threshold (and just the skill level itself before that threshold)
             float adjustedSkill = std::max(minSkill, spellSkill + std::max(0.0f, spellSkill - skillThreshold));
 
-            float fatigueTerm = stats.getFatigueTerm();
-
             // Magicka cost will increase to simultaneously increase chance of success
             // Cost should never drop below base cost
-            return spell.mData.mCost * std::max(1.0f, 100.0f / (adjustedSkill * fatigueTerm));
+            return spell.mData.mCost * std::max(1.0f, 100.0f / adjustedSkill);
         }
         else
         {
@@ -188,12 +186,27 @@ namespace MWMechanics
         }
     }
 
-    float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, int spellSchool, float magicka)
+    float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, float magicka, float fatigueTerm, int spellSchool)
     {
         if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
         {
+            float baseCost = static_cast<float>(spell.mData.mCost);
+
             // Magicka cost is limited to the caster's available magicka, or the base cost of the spell, whichever is more.
-            return std::min(getAdjustedSpellCost(spell, actor, spellSchool), std::max(static_cast<float>(spell.mData.mCost), magicka));
+            // Also, don't let fatigue term drop adjusted cost below base cost
+            return std::min(std::max(baseCost, getAdjustedSpellCost(spell, actor, spellSchool) / fatigueTerm), std::max(baseCost, magicka));
+        }
+        else
+        {
+            return spell.mData.mCost;
+        }
+    }
+
+    float getMagickaLimitedAdjustedSpellCost(const ESM::Spell& spell, const MWWorld::Ptr& actor, float magicka, float fatigueTerm)
+    {
+        if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
+        {
+            return getMagickaLimitedAdjustedSpellCost(spell, actor, magicka, fatigueTerm, MWMechanics::getSpellSchool(&spell, actor));
         }
         else
         {
@@ -205,7 +218,7 @@ namespace MWMechanics
     {
         if (Settings::Manager::getBool("easy spells usually succeed", "Game"))
         {
-            return getMagickaLimitedAdjustedSpellCost(spell, actor, MWMechanics::getSpellSchool(&spell, actor), magicka);
+            return getMagickaLimitedAdjustedSpellCost(spell, actor, magicka, actor.getClass().getCreatureStats(actor).getFatigueTerm());
         }
         else
         {
