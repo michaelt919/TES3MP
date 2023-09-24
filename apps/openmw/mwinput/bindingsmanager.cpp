@@ -739,6 +739,11 @@ namespace MWInput
                             MWBase::Environment::get().getWorld()->getPlayer().setDrawState(MWMechanics::DrawState_Weapon);
                         }
                     }
+                    else
+                    {
+                        // Attack key released
+                        player.setAttackingOrSpell(false);
+                    }
                 }
             }
             else if (action == A_Jump)
